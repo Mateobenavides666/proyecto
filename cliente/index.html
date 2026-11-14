@@ -247,6 +247,12 @@ async function vistaMensajes() {
       '<h2>Enviados</h2>' + (env.length ? env.map(tarjetaEnv).join('') : '<div class="card">Sin mensajes.</div>');
   } catch (e) { aviso(e.message, false); }
 }
+async function responder(receptor, servicio) {
+  const texto = prompt("Escribe tu respuesta:");
+  if (!texto) return;
+  try { await api("/mensajes", "POST", { receptor, servicio, texto }); aviso("Respuesta enviada"); vistaMensajes(); }
+  catch (e) { aviso(e.message, false); }
+}
 async function leido(id) {
   try { await api('/mensajes/' + id + '/leido', 'PATCH'); vistaMensajes(); } catch (e) { aviso(e.message, false); }
 }
