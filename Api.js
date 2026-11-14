@@ -9,6 +9,7 @@ app.use(express.json());
 
 app.get('/', (req, res) => res.json({ mensaje: 'API Banco de Habilidades funcionando' }));
 app.use('/auth', require('./routes/authRoutes'));
+app.use('/perfiles', require('./routes/perfilRoutes'));
 
 const PORT = process.env.PORT || 3000;
 
