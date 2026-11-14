@@ -5,8 +5,18 @@ const CAMPOS = ['titulo', 'descripcion', 'categoria', 'modalidad', 'precio', 'es
 const filtrar = (body) =>
   CAMPOS.reduce((o, c) => (body[c] !== undefined ? { ...o, [c]: body[c] } : o), {});
 
+// Devuelve un mensaje de error si el precio trae números y todos suman 0 ("0", "$0", "00")
+const errorPrecio = (precio) => {
+  if (precio === undefined || precio === null) return null;
+  const digitos = String(precio).replace(/\D/g, '');
+  if (digitos !== '' && Number(digitos) <= 0) return 'El precio debe ser mayor que 0';
+  return null;
+};
+
 exports.crear = async (req, res) => {
   try {
+    const errPrecio = errorPrecio(req.body.precio);
+    if (errPrecio) return res.status(400).json({ error: errPrecio });
     const servicio = await Servicio.create({ ...filtrar(req.body), usuario: req.usuario.id });
     res.status(201).json(servicio);
   } catch (e) {
@@ -48,6 +58,8 @@ exports.obtener = async (req, res) => {
 
 exports.actualizar = async (req, res) => {
   try {
+    const errPrecio = errorPrecio(req.body.precio);
+    if (errPrecio) return res.status(400).json({ error: errPrecio });
     const servicio = await Servicio.findOneAndUpdate(
       { _id: req.params.id, usuario: req.usuario.id },
       filtrar(req.body),
