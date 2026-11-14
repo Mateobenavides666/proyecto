@@ -239,7 +239,7 @@ async function vistaMensajes() {
     const tarjetaRec = m => `<div class="card"><b>${esc(m.emisor?.nombre)}</b>
       <small> sobre ${esc(m.servicio?.titulo)} ${m.leido ? '' : '· NUEVO'}</small>
       <p>${esc(m.texto)}</p>
-      ${m.leido ? '' : `<button class="btn sec" onclick="leido('${m._id}')">Marcar leído</button>`}</div>`;
+      ${m.leido ? '' : `<button class="btn sec" onclick="leido('${m._id}')">Marcar leído</button>`}<button class="btn" onclick="responder('${m.emisor?._id}','${m.servicio?._id}')">Responder</button></div>`;
     const tarjetaEnv = m => `<div class="card"><b>Para ${esc(m.receptor?.nombre)}</b>
       <small> sobre ${esc(m.servicio?.titulo)}</small><p>${esc(m.texto)}</p></div>`;
     $('vista').innerHTML =
