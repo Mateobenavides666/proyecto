@@ -15,7 +15,7 @@
   .card{background:#fff;border-radius:10px;padding:16px;margin-bottom:12px;box-shadow:0 1px 3px #0002}
   input,select,textarea{width:100%;padding:8px;margin:4px 0 10px;box-sizing:border-box;border:1px solid #ccc;border-radius:6px;font:inherit}
   .btn{background:#6b3fa0;color:#fff;border:0;padding:8px 14px;border-radius:6px;cursor:pointer;margin-right:6px}
-  .btn.sec{background:#777}
+  .btn.sec{background:#595959}
   .btn.red{background:#c0392b}
   .row{display:flex;gap:8px;flex-wrap:wrap}
   .row>*{flex:1;min-width:140px}
@@ -23,16 +23,22 @@
   #aviso{display:none;padding:10px;border-radius:6px;margin-bottom:12px}
   .ok{background:#d4edda}.err{background:#f8d7da}
   small{color:#666}
+  h2{font-size:18px;margin:12px 0}
+  :focus-visible{outline:3px solid #0b57d0;outline-offset:2px}
+  nav button:focus-visible{outline-color:#fff}
+  .saltar{position:absolute;left:-999px}
+  .saltar:focus{left:8px;top:8px;background:#fff;color:#000;padding:8px;z-index:10}
 </style>
 </head>
 <body>
+<a class="saltar" href="#vista">Saltar al contenido</a>
 <header>
   <h1>Banco de Habilidades</h1>
-  <nav id="nav"></nav>
+  <nav id="nav" aria-label="Menú principal"></nav>
 </header>
 <main>
-  <div id="aviso"></div>
-  <div id="vista"></div>
+  <div id="aviso" role="alert"></div>
+  <div id="vista" tabindex="-1"></div>
 </main>
 
 <script>
@@ -45,7 +51,7 @@ const esc = (t) => String(t ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&
 
 function aviso(texto, ok = true) {
   const a = $('aviso');
-  a.textContent = texto;
+  a.textContent = (ok ? 'Éxito: ' : 'Error: ') + texto;
   a.className = ok ? 'ok' : 'err';
   a.style.display = 'block';
   setTimeout(() => a.style.display = 'none', 4000);
@@ -84,8 +90,8 @@ function salir() {
 async function vistaServicios() {
   $('vista').innerHTML = `
     <div class="card"><div class="row">
-      <input id="q" placeholder="Buscar por título...">
-      <select id="cat"><option value="">Todas las categorías</option>${CATS.map(c => `<option>${c}</option>`).join('')}</select>
+      <input id="q" placeholder="Buscar por título..." aria-label="Buscar por título...">
+      <select id="cat" aria-label="Categoría"><option value="">Todas las categorías</option>${CATS.map(c => `<option>${c}</option>`).join('')}</select>
       <button class="btn" onclick="cargarServicios()">Buscar</button>
     </div></div>
     <div id="lista">Cargando...</div>`;
@@ -100,7 +106,7 @@ async function cargarServicios() {
     const lista = await api('/servicios?' + p);
     $('lista').innerHTML = lista.length ? lista.map(s => `
       <div class="card">
-        <h3 style="margin:0 0 6px">${esc(s.titulo)}</h3>
+        <h2 style="margin:0 0 6px">${esc(s.titulo)}</h2>
         <span class="tag">${esc(s.categoria)}</span><span class="tag">${esc(s.modalidad)}</span>
         <p>${esc(s.descripcion)}</p>
         <small>Por ${esc(s.usuario?.nombre)} · ${esc(s.precio)}</small><br><br>
@@ -140,12 +146,12 @@ async function verValoraciones(id) {
 function vistaAuth() {
   $('vista').innerHTML = `
     <div class="row">
-      <div class="card"><h3>Iniciar sesión</h3>
-        <input id="lc" placeholder="Correo"><input id="lp" type="password" placeholder="Contraseña">
+      <div class="card"><h2>Iniciar sesión</h2>
+        <input id="lc" placeholder="Correo" aria-label="Correo"><input id="lp" type="password" placeholder="Contraseña" aria-label="Contraseña">
         <button class="btn" onclick="entrar()">Entrar</button></div>
-      <div class="card"><h3>Crear cuenta</h3>
-        <input id="rn" placeholder="Nombre"><input id="rc" placeholder="Correo">
-        <input id="rp" type="password" placeholder="Contraseña (mínimo 6)">
+      <div class="card"><h2>Crear cuenta</h2>
+        <input id="rn" placeholder="Nombre" aria-label="Nombre"><input id="rc" placeholder="Correo" aria-label="Correo">
+        <input id="rp" type="password" placeholder="Contraseña (mínimo 6)" aria-label="Contraseña (mínimo 6)">
         <button class="btn" onclick="registrar()">Registrarme</button></div>
     </div>`;
 }
@@ -170,11 +176,11 @@ async function vistaPerfil() {
   let p = null;
   try { p = await api('/perfiles/me'); } catch (e) { /* aún sin perfil */ }
   $('vista').innerHTML = `
-    <div class="card"><h3>${p ? 'Mi perfil' : 'Crea tu perfil'}</h3>
-      <label>Biografía</label><textarea id="pb" rows="3">${esc(p?.biografia)}</textarea>
-      <label>Ubicación</label><input id="pu" value="${esc(p?.ubicacion)}">
-      <label>Habilidades (separadas por coma)</label><input id="ph" value="${esc((p?.habilidades || []).join(', '))}">
-      <label>Grupo</label>
+    <div class="card"><h2>${p ? 'Mi perfil' : 'Crea tu perfil'}</h2>
+      <label for="pb">Biografía</label><textarea id="pb" rows="3">${esc(p?.biografia)}</textarea>
+      <label for="pu">Ubicación</label><input id="pu" value="${esc(p?.ubicacion)}">
+      <label for="ph">Habilidades (separadas por coma)</label><input id="ph" value="${esc((p?.habilidades || []).join(', '))}">
+      <label for="pg">Grupo</label>
       <select id="pg">${['', 'mujer', 'joven', 'ambos'].map(g => `<option value="${g}" ${p?.grupo === g ? 'selected' : ''}>${g || '(sin indicar)'}</option>`).join('')}</select>
       <button class="btn" onclick="guardarPerfil(${p ? 'true' : 'false'})">Guardar</button></div>`;
 }
@@ -192,15 +198,15 @@ async function guardarPerfil(existe) {
 /* ---------- Publicar servicios ---------- */
 async function vistaPublicar() {
   $('vista').innerHTML = `
-    <div class="card"><h3>Publicar un servicio</h3>
-      <input id="st" placeholder="Título"><textarea id="sd" rows="3" placeholder="Descripción"></textarea>
+    <div class="card"><h2>Publicar un servicio</h2>
+      <input id="st" placeholder="Título" aria-label="Título"><textarea id="sd" rows="3" placeholder="Descripción" aria-label="Descripción"></textarea>
       <div class="row">
-        <select id="sc">${CATS.map(c => `<option>${c}</option>`).join('')}</select>
-        <select id="sm"><option>presencial</option><option>virtual</option><option>ambas</option></select>
-        <input id="sp" placeholder="Precio (o A convenir)">
+        <select id="sc" aria-label="Categoría del servicio">${CATS.map(c => `<option>${c}</option>`).join('')}</select>
+        <select id="sm" aria-label="Modalidad"><option>presencial</option><option>virtual</option><option>ambas</option></select>
+        <input id="sp" placeholder="Precio (o A convenir)" aria-label="Precio (o A convenir)">
       </div>
       <button class="btn" onclick="publicar()">Publicar</button></div>
-    <h3>Mis servicios</h3><div id="mios">Cargando...</div>`;
+    <h2>Mis servicios</h2><div id="mios">Cargando...</div>`;
   cargarMios();
 }
 async function publicar() {
@@ -237,8 +243,8 @@ async function vistaMensajes() {
     const tarjetaEnv = m => `<div class="card"><b>Para ${esc(m.receptor?.nombre)}</b>
       <small> sobre ${esc(m.servicio?.titulo)}</small><p>${esc(m.texto)}</p></div>`;
     $('vista').innerHTML =
-      '<h3>Recibidos</h3>' + (rec.length ? rec.map(tarjetaRec).join('') : '<div class="card">Sin mensajes.</div>') +
-      '<h3>Enviados</h3>' + (env.length ? env.map(tarjetaEnv).join('') : '<div class="card">Sin mensajes.</div>');
+      '<h2>Recibidos</h2>' + (rec.length ? rec.map(tarjetaRec).join('') : '<div class="card">Sin mensajes.</div>') +
+      '<h2>Enviados</h2>' + (env.length ? env.map(tarjetaEnv).join('') : '<div class="card">Sin mensajes.</div>');
   } catch (e) { aviso(e.message, false); }
 }
 async function leido(id) {
@@ -255,8 +261,8 @@ async function vistaAdmin() {
         : `<button class="btn" onclick="estado('${u._id}','activo')">Reactivar</button>`}</div>`;
     const tarjetaS = s => `<div class="card"><b>${esc(s.titulo)}</b> <small>de ${esc(s.usuario?.nombre)}</small><br><br>
       <button class="btn red" onclick="quitar('${s._id}')">Eliminar</button></div>`;
-    $('vista').innerHTML = '<h3>Usuarios</h3>' + us.map(tarjetaU).join('') +
-      '<h3>Servicios</h3>' + sv.map(tarjetaS).join('');
+    $('vista').innerHTML = '<h2>Usuarios</h2>' + us.map(tarjetaU).join('') +
+      '<h2>Servicios</h2>' + sv.map(tarjetaS).join('');
   } catch (e) { aviso(e.message, false); }
 }
 async function estado(id, nuevo) {

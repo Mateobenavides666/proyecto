@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Banco de Habilidades</title>
+<style>
+  body{font-family:system-ui,sans-serif;margin:0;background:#f4f6f8;color:#222}
+  header{background:#6b3fa0;color:#fff;padding:12px 20px;display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+  header h1{font-size:20px;margin:0;flex:1}
+  nav{display:flex;flex-wrap:wrap;gap:6px}
+  nav button{background:#ffffff26;color:#fff;border:0;padding:8px 12px;border-radius:6px;cursor:pointer}
+  nav button:hover{background:#ffffff4d}
+  main{max-width:900px;margin:20px auto;padding:0 16px}
+  .card{background:#fff;border-radius:10px;padding:16px;margin-bottom:12px;box-shadow:0 1px 3px #0002}
+  input,select,textarea{width:100%;padding:8px;margin:4px 0 10px;box-sizing:border-box;border:1px solid #ccc;border-radius:6px;font:inherit}
+  .btn{background:#6b3fa0;color:#fff;border:0;padding:8px 14px;border-radius:6px;cursor:pointer;margin-right:6px}
+  .btn.sec{background:#777}
+  .btn.red{background:#c0392b}
+  .row{display:flex;gap:8px;flex-wrap:wrap}
+  .row>*{flex:1;min-width:140px}
+  .tag{background:#eadcf7;border-radius:12px;padding:2px 10px;font-size:12px;margin-right:4px}
+  #aviso{display:none;padding:10px;border-radius:6px;margin-bottom:12px}
+  .ok{background:#d4edda}.err{background:#f8d7da}
+  small{color:#666}
+</style>
+</head>
+<body>
+<header>
+  <h1>Banco de Habilidades</h1>
+  <nav id="nav"></nav>
+</header>
+<main>
+  <div id="aviso"></div>
+  <div id="vista"></div>
+</main>
+
+<script>
+const CATS = ['cocina','tutorias','diseno','costura','tecnologia','cuidado','oficios','otros'];
+let token = localStorage.getItem('token') || '';
+let usuario = JSON.parse(localStorage.getItem('usuario') || 'null');
+
+const $ = (id) => document.getElementById(id);
+const esc = (t) => String(t ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function aviso(texto, ok = true) {
+  const a = $('aviso');
+  a.textContent = texto;
+  a.className = ok ? 'ok' : 'err';
+  a.style.display = 'block';
+  setTimeout(() => a.style.display = 'none', 4000);
+}
+
+async function api(ruta, metodo = 'GET', cuerpo) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers.Authorization = 'Bearer ' + token;
+  const r = await fetch(ruta, { method: metodo, headers, body: cuerpo ? JSON.stringify(cuerpo) : undefined });
+  const datos = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(datos.error || 'Error ' + r.status);
+  return datos;
+}
+
+function menu() {
+  let h = '<button onclick="vistaServicios()">Servicios</button>';
+  if (usuario) {
+    h += '<button onclick="vistaPublicar()">Publicar</button>' +
+         '<button onclick="vistaPerfil()">Mi perfil</button>' +
+         '<button onclick="vistaMensajes()">Mensajes</button>';
+    if (usuario.rol === 'admin') h += '<button onclick="vistaAdmin()">Admin</button>';
+    h += '<button onclick="salir()">Salir (' + esc(usuario.nombre) + ')</button>';
+  } else {
+    h += '<button onclick="vistaAuth()">Entrar / Registrarme</button>';
+  }
+  $('nav').innerHTML = h;
+}
+
+function salir() {
+  token = ''; usuario = null;
+  localStorage.clear();
+  menu(); vistaServicios();
+}
+
+/* ---------- Servicios ---------- */
+async function vistaServicios() {
+  $('vista').innerHTML = `
+    <div class="card"><div class="row">
+      <input id="q" placeholder="Buscar por título...">
+      <select id="cat"><option value="">Todas las categorías</option>${CATS.map(c => `<option>${c}</option>`).join('')}</select>
+      <button class="btn" onclick="cargarServicios()">Buscar</button>
+    </div></div>
+    <div id="lista">Cargando...</div>`;
+  cargarServicios();
+}
+
+async function cargarServicios() {
+  try {
+    const p = new URLSearchParams();
+    if ($('q').value) p.set('q', $('q').value);
+    if ($('cat').value) p.set('categoria', $('cat').value);
+    const lista = await api('/servicios?' + p);
+    $('lista').innerHTML = lista.length ? lista.map(s => `
+      <div class="card">
+        <h3 style="margin:0 0 6px">${esc(s.titulo)}</h3>
+        <span class="tag">${esc(s.categoria)}</span><span class="tag">${esc(s.modalidad)}</span>
+        <p>${esc(s.descripcion)}</p>
+        <small>Por ${esc(s.usuario?.nombre)} · ${esc(s.precio)}</small><br><br>
+        <button class="btn" onclick="contactar('${s._id}','${s.usuario?._id}')">Contactar</button>
+        <button class="btn sec" onclick="valorar('${s._id}')">Valorar</button>
+        <button class="btn sec" onclick="verValoraciones('${s._id}')">Ver valoraciones</button>
+      </div>`).join('') : '<div class="card">No hay servicios todavía.</div>';
+  } catch (e) { aviso(e.message, false); }
+}
+
+async function contactar(servicio, receptor) {
+  if (!usuario) return aviso('Inicia sesión para contactar', false);
+  const texto = prompt('Escribe tu mensaje:');
+  if (!texto) return;
+  try { await api('/mensajes', 'POST', { receptor, servicio, texto }); aviso('Mensaje enviado'); }
+  catch (e) { aviso(e.message, false); }
+}
+
+async function valorar(servicio) {
+  if (!usuario) return aviso('Inicia sesión para valorar', false);
+  const puntaje = Number(prompt('Puntaje de 1 a 5:'));
+  if (!puntaje) return;
+  const comentario = prompt('Comentario (opcional):') || '';
+  try { await api('/valoraciones', 'POST', { servicio, puntaje, comentario }); aviso('Valoración enviada'); }
+  catch (e) { aviso(e.message, false); }
+}
+
+async function verValoraciones(id) {
+  try {
+    const r = await api('/valoraciones/servicio/' + id);
+    alert('Promedio: ' + r.promedio + ' (' + r.total + ' valoraciones)\n\n' +
+      r.valoraciones.map(v => v.autor.nombre + ': ' + v.puntaje + '/5 - ' + v.comentario).join('\n'));
+  } catch (e) { aviso(e.message, false); }
+}
+
+/* ---------- Registro e inicio de sesión ---------- */
+function vistaAuth() {
+  $('vista').innerHTML = `
+    <div class="row">
+      <div class="card"><h3>Iniciar sesión</h3>
+        <input id="lc" placeholder="Correo"><input id="lp" type="password" placeholder="Contraseña">
+        <button class="btn" onclick="entrar()">Entrar</button></div>
+      <div class="card"><h3>Crear cuenta</h3>
+        <input id="rn" placeholder="Nombre"><input id="rc" placeholder="Correo">
+        <input id="rp" type="password" placeholder="Contraseña (mínimo 6)">
+        <button class="btn" onclick="registrar()">Registrarme</button></div>
+    </div>`;
+}
+
+function guardarSesion(r) {
+  token = r.token; usuario = r.usuario;
+  localStorage.setItem('token', token);
+  localStorage.setItem('usuario', JSON.stringify(usuario));
+  menu(); vistaServicios();
+}
+async function entrar() {
+  try { guardarSesion(await api('/auth/login', 'POST', { correo: $('lc').value, password: $('lp').value })); aviso('Bienvenida/o'); }
+  catch (e) { aviso(e.message, false); }
+}
+async function registrar() {
+  try { guardarSesion(await api('/auth/registro', 'POST', { nombre: $('rn').value, correo: $('rc').value, password: $('rp').value })); aviso('Cuenta creada'); }
+  catch (e) { aviso(e.message, false); }
+}
+
+/* ---------- Perfil ---------- */
+async function vistaPerfil() {
+  let p = null;
+  try { p = await api('/perfiles/me'); } catch (e) { /* aún sin perfil */ }
+  $('vista').innerHTML = `
+    <div class="card"><h3>${p ? 'Mi perfil' : 'Crea tu perfil'}</h3>
+      <label>Biografía</label><textarea id="pb" rows="3">${esc(p?.biografia)}</textarea>
+      <label>Ubicación</label><input id="pu" value="${esc(p?.ubicacion)}">
+      <label>Habilidades (separadas por coma)</label><input id="ph" value="${esc((p?.habilidades || []).join(', '))}">
+      <label>Grupo</label>
+      <select id="pg">${['', 'mujer', 'joven', 'ambos'].map(g => `<option value="${g}" ${p?.grupo === g ? 'selected' : ''}>${g || '(sin indicar)'}</option>`).join('')}</select>
+      <button class="btn" onclick="guardarPerfil(${p ? 'true' : 'false'})">Guardar</button></div>`;
+}
+async function guardarPerfil(existe) {
+  const cuerpo = {
+    biografia: $('pb').value, ubicacion: $('pu').value, grupo: $('pg').value,
+    habilidades: $('ph').value.split(',').map(x => x.trim()).filter(Boolean)
+  };
+  try {
+    await (existe ? api('/perfiles/me', 'PUT', cuerpo) : api('/perfiles', 'POST', cuerpo));
+    aviso('Perfil guardado');
+  } catch (e) { aviso(e.message, false); }
+  }
+
+/* ---------- Publicar servicios ---------- */
+async function vistaPublicar() {
+  $('vista').innerHTML = `
+    <div class="card"><h3>Publicar un servicio</h3>
+      <input id="st" placeholder="Título"><textarea id="sd" rows="3" placeholder="Descripción"></textarea>
+      <div class="row">
+        <select id="sc">${CATS.map(c => `<option>${c}</option>`).join('')}</select>
+        <select id="sm"><option>presencial</option><option>virtual</option><option>ambas</option></select>
+        <input id="sp" placeholder="Precio (o A convenir)">
+      </div>
+      <button class="btn" onclick="publicar()">Publicar</button></div>
+    <h3>Mis servicios</h3><div id="mios">Cargando...</div>`;
+  cargarMios();
+}
+async function publicar() {
+  try {
+    await api('/servicios', 'POST', {
+      titulo: $('st').value, descripcion: $('sd').value, categoria: $('sc').value,
+      modalidad: $('sm').value, precio: $('sp').value || 'A convenir'
+    });
+    aviso('Servicio publicado'); vistaPublicar();
+  } catch (e) { aviso(e.message, false); }
+}
+async function cargarMios() {
+  try {
+    const l = await api('/servicios/mios');
+    const tarjeta = s => `<div class="card"><b>${esc(s.titulo)}</b> <span class="tag">${esc(s.categoria)}</span>
+      <small>${esc(s.precio)}</small><br><br>
+      <button class="btn red" onclick="borrarMio('${s._id}')">Eliminar</button></div>`;
+    $('mios').innerHTML = l.length ? l.map(tarjeta).join('') : '<div class="card">Aún no has publicado nada.</div>';
+  } catch (e) { aviso(e.message, false); }
+}
+async function borrarMio(id) {
+  if (!confirm('¿Eliminar este servicio?')) return;
+  try { await api('/servicios/' + id, 'DELETE'); cargarMios(); } catch (e) { aviso(e.message, false); }
+}
+
+/* ---------- Mensajes ---------- */
+async function vistaMensajes() {
+  try {
+    const [rec, env] = await Promise.all([api('/mensajes/recibidos'), api('/mensajes/enviados')]);
+    const tarjetaRec = m => `<div class="card"><b>${esc(m.emisor?.nombre)}</b>
+      <small> sobre ${esc(m.servicio?.titulo)} ${m.leido ? '' : '· NUEVO'}</small>
+      <p>${esc(m.texto)}</p>
+      ${m.leido ? '' : `<button class="btn sec" onclick="leido('${m._id}')">Marcar leído</button>`}</div>`;
+    const tarjetaEnv = m => `<div class="card"><b>Para ${esc(m.receptor?.nombre)}</b>
+      <small> sobre ${esc(m.servicio?.titulo)}</small><p>${esc(m.texto)}</p></div>`;
+    $('vista').innerHTML =
+      '<h3>Recibidos</h3>' + (rec.length ? rec.map(tarjetaRec).join('') : '<div class="card">Sin mensajes.</div>') +
+      '<h3>Enviados</h3>' + (env.length ? env.map(tarjetaEnv).join('') : '<div class="card">Sin mensajes.</div>');
+  } catch (e) { aviso(e.message, false); }
+}
+async function leido(id) {
+  try { await api('/mensajes/' + id + '/leido', 'PATCH'); vistaMensajes(); } catch (e) { aviso(e.message, false); }
+}
+
+/* ---------- Panel admin ---------- */
+async function vistaAdmin() {
+  try {
+    const [us, sv] = await Promise.all([api('/admin/usuarios'), api('/admin/servicios')]);
+    const tarjetaU = u => `<div class="card"><b>${esc(u.nombre)}</b> <small>${esc(u.correo)} · ${esc(u.rol)} · ${esc(u.estado)}</small><br><br>
+      ${u.estado === 'activo'
+        ? `<button class="btn red" onclick="estado('${u._id}','suspendido')">Suspender</button>`
+        : `<button class="btn" onclick="estado('${u._id}','activo')">Reactivar</button>`}</div>`;
+    const tarjetaS = s => `<div class="card"><b>${esc(s.titulo)}</b> <small>de ${esc(s.usuario?.nombre)}</small><br><br>
+      <button class="btn red" onclick="quitar('${s._id}')">Eliminar</button></div>`;
+    $('vista').innerHTML = '<h3>Usuarios</h3>' + us.map(tarjetaU).join('') +
+      '<h3>Servicios</h3>' + sv.map(tarjetaS).join('');
+  } catch (e) { aviso(e.message, false); }
+}
+async function estado(id, nuevo) {
+  try { await api('/admin/usuarios/' + id, 'PATCH', { estado: nuevo }); vistaAdmin(); } catch (e) { aviso(e.message, false); }
+}
+async function quitar(id) {
+  if (!confirm('¿Eliminar este servicio por moderación?')) return;
+  try { await api('/admin/servicios/' + id, 'DELETE'); vistaAdmin(); } catch (e) { aviso(e.message, false); }
+}
+
+menu();
+vistaServicios();
+</script>
+</body>
+</html>
