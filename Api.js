@@ -13,6 +13,7 @@ app.use('/perfiles', require('./routes/perfilRoutes'));
 app.use('/servicios', require('./routes/servicioRoutes'));
 app.use('/mensajes', require('./routes/mensajeRoutes'));
 app.use('/valoraciones', require('./routes/valoracionRoutes'));
+app.use('/admin', require('./routes/adminRoutes'));
 
 const PORT = process.env.PORT || 3000;
 
