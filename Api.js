@@ -6,6 +6,7 @@ const cors = require('cors');
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.use(express.static('cliente'));
 
 app.get('/', (req, res) => res.json({ mensaje: 'API Banco de Habilidades funcionando' }));
 app.use('/auth', require('./routes/authRoutes'));
