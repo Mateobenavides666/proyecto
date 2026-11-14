@@ -11,6 +11,7 @@ app.get('/', (req, res) => res.json({ mensaje: 'API Banco de Habilidades funcion
 app.use('/auth', require('./routes/authRoutes'));
 app.use('/perfiles', require('./routes/perfilRoutes'));
 app.use('/servicios', require('./routes/servicioRoutes'));
+app.use('/mensajes', require('./routes/mensajeRoutes'));
 
 const PORT = process.env.PORT || 3000;
 
