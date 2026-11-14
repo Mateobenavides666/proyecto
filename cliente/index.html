@@ -187,7 +187,7 @@ async function guardarPerfil(existe) {
     await (existe ? api('/perfiles/me', 'PUT', cuerpo) : api('/perfiles', 'POST', cuerpo));
     aviso('Perfil guardado');
   } catch (e) { aviso(e.message, false); }
-}
+  }
 
 /* ---------- Publicar servicios ---------- */
 async function vistaPublicar() {
@@ -215,10 +215,10 @@ async function publicar() {
 async function cargarMios() {
   try {
     const l = await api('/servicios/mios');
-    $('mios').innerHTML = l.length ? l.map(s => `
-      <div class="card"><b>${esc(s.titulo)}</b> <span class="tag">${esc(s.categoria)}</span>
+    const tarjeta = s => `<div class="card"><b>${esc(s.titulo)}</b> <span class="tag">${esc(s.categoria)}</span>
       <small>${esc(s.precio)}</small><br><br>
-      <button class="btn red" onclick="borrarMio('${s._id}')">Eliminar</button></div>`).join('') : '<div class="card">Aún no has publicado nada.</div>';
+      <button class="btn red" onclick="borrarMio('${s._id}')">Eliminar</button></div>`;
+    $('mios').innerHTML = l.length ? l.map(tarjeta).join('') : '<div class="card">Aún no has publicado nada.</div>';
   } catch (e) { aviso(e.message, false); }
 }
 async function borrarMio(id) {
@@ -230,11 +230,45 @@ async function borrarMio(id) {
 async function vistaMensajes() {
   try {
     const [rec, env] = await Promise.all([api('/mensajes/recibidos'), api('/mensajes/enviados')]);
-    $('vista').innerHTML = `
-      <h3>Recibidos</h3>
-      ${rec.length ? rec.map(m => `<div class="card"><b>${esc(m.emisor?.nombre)}</b>
-        <small> sobre ${esc(m.servicio?.titulo)} ${m.leido ? '' : '· NUEVO'}</small>
-        <p>${esc(m.texto)}</p>
-        ${m.leido ? '' : `<button class="btn sec" onclick="leido('${m._id}')">Marcar leído</button>`}</div>`).join('') : '<div class="card">Sin mensajes.</div>'}
-      <h3>Enviados</h3>
-      ${env.length ? env.map(m => `<div class="card"><b>Para
+    const tarjetaRec = m => `<div class="card"><b>${esc(m.emisor?.nombre)}</b>
+      <small> sobre ${esc(m.servicio?.titulo)} ${m.leido ? '' : '· NUEVO'}</small>
+      <p>${esc(m.texto)}</p>
+      ${m.leido ? '' : `<button class="btn sec" onclick="leido('${m._id}')">Marcar leído</button>`}</div>`;
+    const tarjetaEnv = m => `<div class="card"><b>Para ${esc(m.receptor?.nombre)}</b>
+      <small> sobre ${esc(m.servicio?.titulo)}</small><p>${esc(m.texto)}</p></div>`;
+    $('vista').innerHTML =
+      '<h3>Recibidos</h3>' + (rec.length ? rec.map(tarjetaRec).join('') : '<div class="card">Sin mensajes.</div>') +
+      '<h3>Enviados</h3>' + (env.length ? env.map(tarjetaEnv).join('') : '<div class="card">Sin mensajes.</div>');
+  } catch (e) { aviso(e.message, false); }
+}
+async function leido(id) {
+  try { await api('/mensajes/' + id + '/leido', 'PATCH'); vistaMensajes(); } catch (e) { aviso(e.message, false); }
+}
+
+/* ---------- Panel admin ---------- */
+async function vistaAdmin() {
+  try {
+    const [us, sv] = await Promise.all([api('/admin/usuarios'), api('/admin/servicios')]);
+    const tarjetaU = u => `<div class="card"><b>${esc(u.nombre)}</b> <small>${esc(u.correo)} · ${esc(u.rol)} · ${esc(u.estado)}</small><br><br>
+      ${u.estado === 'activo'
+        ? `<button class="btn red" onclick="estado('${u._id}','suspendido')">Suspender</button>`
+        : `<button class="btn" onclick="estado('${u._id}','activo')">Reactivar</button>`}</div>`;
+    const tarjetaS = s => `<div class="card"><b>${esc(s.titulo)}</b> <small>de ${esc(s.usuario?.nombre)}</small><br><br>
+      <button class="btn red" onclick="quitar('${s._id}')">Eliminar</button></div>`;
+    $('vista').innerHTML = '<h3>Usuarios</h3>' + us.map(tarjetaU).join('') +
+      '<h3>Servicios</h3>' + sv.map(tarjetaS).join('');
+  } catch (e) { aviso(e.message, false); }
+}
+async function estado(id, nuevo) {
+  try { await api('/admin/usuarios/' + id, 'PATCH', { estado: nuevo }); vistaAdmin(); } catch (e) { aviso(e.message, false); }
+}
+async function quitar(id) {
+  if (!confirm('¿Eliminar este servicio por moderación?')) return;
+  try { await api('/admin/servicios/' + id, 'DELETE'); vistaAdmin(); } catch (e) { aviso(e.message, false); }
+}
+
+menu();
+vistaServicios();
+</script>
+</body>
+</html>
